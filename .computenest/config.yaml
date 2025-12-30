@@ -1,0 +1,158 @@
+Service:
+  DeployType: ros
+  DeployMetadata:
+    SupplierDeployMetadata:
+      DeployTimeout: 7200
+      ArtifactRelation:
+        centos_7_9_x64_20G_alibase_20240403.vhd:
+          ArtifactId: ${Artifact.Artifact_1.ArtifactId}
+          ArtifactVersion: ${Artifact.Artifact_1.ArtifactVersion}
+      SupplierTemplateConfigs:
+        - Name: 单机版
+          Url: ros_templates/template.yaml
+          PredefinedParameters: []
+          AllowedRegions:
+            - cn-qingdao
+            - cn-beijing
+            - cn-zhangjiakou
+            - cn-huhehaote
+            - cn-wulanchabu
+            - cn-hangzhou
+            - cn-shanghai
+            - cn-shenzhen
+            - cn-heyuan
+            - cn-guangzhou
+            - cn-wuhan-lr
+            - cn-chengdu
+        - Name: 已有ACK部署
+          Url: ros_templates/ack.yaml
+          PredefinedParameters: []
+          AllowedRegions:
+            - cn-qingdao
+            - cn-beijing
+            - cn-zhangjiakou
+            - cn-huhehaote
+            - cn-wulanchabu
+            - cn-hangzhou
+            - cn-shanghai
+            - cn-shenzhen
+            - cn-heyuan
+            - cn-guangzhou
+            - cn-wuhan-lr
+            - cn-chengdu
+    TemplateConfigs:
+      - Name: 单机版
+        Url: ros_templates/template.yaml
+        AllowedRegions:
+          - cn-qingdao
+          - cn-beijing
+          - cn-zhangjiakou
+          - cn-huhehaote
+          - cn-wulanchabu
+          - cn-hangzhou
+          - cn-shanghai
+          - cn-shenzhen
+          - cn-heyuan
+          - cn-guangzhou
+          - cn-wuhan-lr
+          - cn-chengdu
+        PredefinedParameters: []
+        ArchitectureDiagramUrl: 
+          https://service-info-private.oss-cn-hangzhou.aliyuncs.com/1853370294850618/architecture/47f4f606-bfe9-479b-ab83-939cd130783d.jpg?Expires=1766212379&OSSAccessKeyId=LTAI5tCYphFhocJemeMWmXst&Signature=wnPq6ICVPWh2yW0oAto3HoF62RU%3D
+        DeployScene: ECS
+        OutputConfigs:
+          - OutputKey: Server Addresses
+            EnableWebProxy: true
+          - OutputKey: Server Private Addresses
+            EnableWebProxy: true
+      - Name: 已有ACK部署
+        Url: ros_templates/ack.yaml
+        AllowedRegions:
+          - cn-qingdao
+          - cn-beijing
+          - cn-zhangjiakou
+          - cn-huhehaote
+          - cn-wulanchabu
+          - cn-hangzhou
+          - cn-shanghai
+          - cn-shenzhen
+          - cn-heyuan
+          - cn-guangzhou
+          - cn-wuhan-lr
+          - cn-chengdu
+        PredefinedParameters: []
+        DeployScene: ACK_EXIST
+        OutputConfigs:
+          - OutputKey: AgentScope Studio 服务器地址
+            EnableWebProxy: true
+    NetworkMetadata:
+      EnablePrivateVpcConnection: false
+      EnableReversePrivateVpcConnection: false
+    ServiceInstanceNameRule:
+      Prefix: Note-red-
+      UseDefaultValue: true
+  OperationMetadata:
+    SupportBackup: false
+    PrometheusConfigMap:
+      单机版:
+        EnablePrometheus: false
+      已有ACK部署:
+        EnablePrometheus: false
+  ServiceType: private
+  ServiceInfo:
+    Locale: zh-CN
+    ShortDescription: AgentScope Studio 是一个强大的本地可视化工具包，用于开发代理应用程序，支持项目管理、运行时可视化、跟踪和代理评估。
+    Image: resources/icons/service_logo.png
+    Name: AgentScope Studio 社区版
+  ShareType: Public
+  ApprovalType: Manual
+Artifact:
+  Artifact_1:
+    ArtifactType: EcsImage
+    ArtifactName: node-red
+    Description: Note-red
+    ArtifactProperty:
+      RegionId: ${ImageBuilder.EcsImage.RegionId}
+      ImageId: ${ImageBuilder.EcsImage.SourceImageId}
+ImageBuilder:
+  EcsImage:
+    RegionId: cn-hongkong
+    SourceImageId: ubuntu_24_04_x64_20G_alibase_20250916.vhd
+    SystemDiskSize: 40
+    InstanceType: ecs.c9i.xlarge
+    InternetMaxBandwidthOut: 100
+    CommandType: RunShellScript
+    Timeout: 10800
+    Tags: []
+    CommandContent: |-
+      #!/bin/bash
+      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # 立即加载 NVM
+      [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # 加载自动补全
+      sudo nvm install --lts
+      sudo npm install -g --unsafe-perm node-red
+
+      sudo cat > /usr/lib/systemd/system/node-red.service << SERVICE_EOF
+      [Unit]
+      Description=Application init service
+      Wants=cloud-final.service
+      Requires=network-online.target
+      After=network-online.target cloud-final.service
+
+      [Service]
+      Environment="PATH=/root/.nvm/versions/node/v22.21.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      ExecStart=/root/.nvm/versions/node/v22.21.0/bin/node-red
+      RemainAfterExit=false
+      KillMode=control-group
+      Restart=Always
+      WorkingDirectory=/root
+
+      [Install]
+      WantedBy=multi-user.target
+
+      SERVICE_EOF
+
+      sudo systemctl daemon-reload
+      sudo systemctl enable node-red.service
+      sudo systemctl start node-red.service
